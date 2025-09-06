@@ -1,4 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'expense_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'record.dart';
 
 class Home extends StatefulWidget {
 
@@ -11,6 +17,56 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
 
   double totalExpenses = 0;
+  static const double floatingButtonsSpacing = 10;
+
+  late Record record;
+
+  @override
+  void initState() {
+    super.initState();
+    record = Record(id: 'loading...', label: '', expenses: [], total: 0);
+    _initDate();
+  }
+
+  void _initDate() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final todayId = DateFormat("MMM-dd-yyyy").format(DateTime.now());
+    String? savedDateStateID = prefs.getString('savedDateStateID');
+
+    if(savedDateStateID == null || savedDateStateID != todayId) {
+      await prefs.setString('savedDateStateID', todayId);
+
+      setState(() {
+        record = Record(
+          id: todayId,
+          label: '',
+          expenses: [],
+          total: 0,
+        );
+      });
+
+      await prefs.setString(todayId, jsonEncode(record.toJson()));
+    } else { // if same day/date
+      String? recordJson = prefs.getString(todayId);
+      if(recordJson != null) {
+        setState(() {
+          record = Record.fromJson(jsonDecode(recordJson));
+        });
+      } else {
+        setState(() {
+          record = Record(
+            id: savedDateStateID,
+            label: '',
+            expenses: [],
+            total: 0,
+          );
+        });
+
+        await prefs.setString(todayId, jsonEncode(record.toJson()));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,16 +86,30 @@ class _HomeState extends State<Home> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TO DO
-        },
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Icon(Icons.add),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatyButton(
+            func: () {
+              debugPrint("redo");
+            },
+            icon: Icon(Icons.keyboard_arrow_right_rounded)
+          ),
+          SizedBox(width: floatingButtonsSpacing),
+          FloatyButton(
+              func: () {
+                debugPrint("undo");
+              },
+              icon: Icon(Icons.keyboard_arrow_left_rounded)
+          ),
+          SizedBox(width: floatingButtonsSpacing),
+          FloatyButton(
+              func: () {
+                debugPrint("plus");
+              },
+              icon: Icon(Icons.add)
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
@@ -51,7 +121,8 @@ class _HomeState extends State<Home> {
             children: [
             SizedBox(width: 18),
             Text(
-              "Date Today", // REPLACE WITH VARIABLE
+              // Date Label
+              record.label == '' ? record.id : record.label,
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 16,
@@ -106,7 +177,7 @@ class _HomeState extends State<Home> {
             ),
           ),
 
-          SizedBox(height: 10),
+          SizedBox(height: 12),
 
           TextButton(
             style: TextButton.styleFrom(
@@ -118,7 +189,7 @@ class _HomeState extends State<Home> {
               ),
             ),
             onPressed: () {
-
+              debugPrint("added");
             },
             child: Text("ADD"),
           ),
@@ -139,56 +210,27 @@ class _HomeState extends State<Home> {
   }
 }
 
-class ExpenseCard extends StatelessWidget {
-  final double amount;
-  final String name;
+class FloatyButton extends StatelessWidget {
+  final VoidCallback func;
+  final Icon icon;
 
-  const ExpenseCard({
+
+  const FloatyButton({
     super.key,
-    required this.amount,
-    required this.name,
+    required this.func,
+    required this.icon
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        fixedSize: Size(150, 160),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(5),
-        ),
-        side: BorderSide(
-          color: Colors.black,
-          width: 0.8,
-        ),
+    return FloatingActionButton(
+      onPressed: func,
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(100),
       ),
-      onPressed: () {
-        // TO DO
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            "₱$amount",
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            name,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
+      child: icon,
     );
   }
-
 }
