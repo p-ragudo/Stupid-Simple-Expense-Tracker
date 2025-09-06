@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'expense_card.dart';
@@ -20,6 +21,7 @@ class _HomeState extends State<Home> {
   static const double floatingButtonsSpacing = 10;
 
   late Record record;
+  late final SharedPreferences prefs;
 
   @override
   void initState() {
@@ -29,7 +31,7 @@ class _HomeState extends State<Home> {
   }
 
   void _initDate() async {
-    final prefs = await SharedPreferences.getInstance();
+    prefs = await SharedPreferences.getInstance();
 
     final todayId = DateFormat("MMM-dd-yyyy").format(DateTime.now());
     String? savedDateStateID = prefs.getString('savedDateStateID');
@@ -134,8 +136,55 @@ class _HomeState extends State<Home> {
                 color: Colors.black,
                 size: 15,
               ),
-              onPressed: () {
-                // TO DO
+              onPressed: () async {
+                final controller = TextEditingController(
+                  text: record.label == '' || record.label.isEmpty ? record.id : record.label
+                );
+
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  controller.selection = TextSelection(
+                    baseOffset: 0,
+                    extentOffset: controller.text.length,
+                  );
+                });
+
+                String? newLabel = await showDialog<String>(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text("Enter Record Name", textAlign: TextAlign.center),
+                      content: TextField(
+                        controller: controller,
+                        decoration: InputDecoration(hintText: "EnterLabel"),
+                        autofocus: true,
+                        textAlign: TextAlign.center,
+                      ),
+                      actionsAlignment: MainAxisAlignment.center,
+                      actionsPadding: EdgeInsets.only(bottom: 15),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, null),
+                          child: Text("Cancel"),
+                        ),
+                        SizedBox(width: 50),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, controller.text.trim()),
+                          child: Text("Enter"),
+                        )
+                      ],
+                    );
+                  },
+                );
+
+                controller.dispose();
+
+                if(newLabel != null && newLabel.isNotEmpty) {
+                  setState(() {
+                    record.label = newLabel;
+                  });
+                }
+
+                prefs.setString(record.id, jsonEncode(record.toJson()));
               },
             ),
           ],),
