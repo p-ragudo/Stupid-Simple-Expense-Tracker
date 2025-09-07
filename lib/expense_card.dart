@@ -32,12 +32,13 @@ class ExpenseCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            "₱${expense.amount}",
+            "₱${expense.amount.toStringAsFixed(2)}",
             style: TextStyle(
               color: Colors.black,
               fontSize: 30,
               fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
           ),
           Text(
             expense.name,
@@ -46,6 +47,7 @@ class ExpenseCard extends StatelessWidget {
               fontSize: 16,
               fontWeight: FontWeight.normal,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

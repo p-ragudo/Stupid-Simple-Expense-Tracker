@@ -9,7 +9,9 @@ import 'package:uuid/uuid.dart';
 
 class Home extends StatefulWidget {
 
-  const Home({super.key});
+  final SharedPreferences prefs;
+
+  const Home({super.key, required this.prefs});
 
   @override
   State<Home> createState() => _HomeState();
@@ -21,7 +23,6 @@ class _HomeState extends State<Home> {
   static const double floatingButtonsSpacing = 10;
 
   late Record record;
-  late final SharedPreferences prefs;
   final uuid = Uuid();
 
   static const String dateIDPrefix = "dateID_";
@@ -33,22 +34,19 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     record = Record(id: 'loading...', label: '', expenses: {}, total: 0);
-    _initPrefs();
-  }
-
-  void _initPrefs() async {
-    prefs = await SharedPreferences.getInstance();
     _initDate();
     _initExpenses();
   }
 
   void _initDate() async {
-    final todayId = "$dateIDPrefix${DateFormat("MMM-dd-yyyy").format(DateTime.now())}";
-    String? savedDateStateID = prefs.getString('savedDateStateID');
+    final todayId = "$dateIDPrefix${DateFormat("MMM-dd-yyyy").format(
+        DateTime.now())}";
+    String? savedDateStateID = widget.prefs.getString('savedDateStateID');
 
-    if(savedDateStateID == null || savedDateStateID != todayId) {
-      await prefs.setString('savedDateStateID', todayId);
+    if (savedDateStateID == null || savedDateStateID != todayId) {
+      await widget.prefs.setString('savedDateStateID', todayId);
 
+      if (!mounted) return;
       setState(() {
         record = Record(
           id: todayId,
@@ -58,14 +56,16 @@ class _HomeState extends State<Home> {
         );
       });
 
-      await prefs.setString(todayId, jsonEncode(record.toJson()));
+      await widget.prefs.setString(todayId, jsonEncode(record.toJson()));
     } else { // if same day/date
-      String? recordJson = prefs.getString(todayId);
-      if(recordJson != null) {
+      String? recordJson = widget.prefs.getString(todayId);
+      if (recordJson != null) {
+        if (!mounted) return;
         setState(() {
           record = Record.fromJson(jsonDecode(recordJson));
         });
       } else {
+        if (!mounted) return;
         setState(() {
           record = Record(
             id: savedDateStateID,
@@ -75,25 +75,26 @@ class _HomeState extends State<Home> {
           );
         });
 
-        await prefs.setString(todayId, jsonEncode(record.toJson()));
+        await widget.prefs.setString(todayId, jsonEncode(record.toJson()));
       }
     }
   }
 
   void _initExpenses() async {
-    final allKeys = prefs.getKeys();
+    final allKeys = widget.prefs.getKeys();
     final expenseKeys = allKeys.where((key) => key.startsWith(expenseIDPrefix));
 
     final loadedExpenses = expenseKeys.map((key) {
-      final jsonStr = prefs.getString(key);
+      final jsonStr = widget.prefs.getString(key);
 
-      if(jsonStr == null) return null;
+      if (jsonStr == null) return null;
 
       final data = jsonDecode(jsonStr);
       return Expense.fromJson(data);
     }).whereType<Expense>().toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) => a.name.compareTo(b.name));
 
+    if (!mounted) return;
     setState(() {
       expenses = loadedExpenses;
     });
@@ -121,10 +122,10 @@ class _HomeState extends State<Home> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatyButton(
-            func: () {
-              debugPrint("redo");
-            },
-            icon: Icon(Icons.keyboard_arrow_right_rounded)
+              func: () {
+                debugPrint("redo");
+              },
+              icon: Icon(Icons.keyboard_arrow_right_rounded)
           ),
           SizedBox(width: floatingButtonsSpacing),
           FloatyButton(
@@ -152,7 +153,9 @@ class _HomeState extends State<Home> {
                 SizedBox(width: 18),
                 Text(
                   // Date Label
-                  record.label == '' ? record.id.replaceFirst(dateIDPrefix, '') : record.label,
+                  record.label == ''
+                      ? record.id.replaceFirst(dateIDPrefix, '')
+                      : record.label,
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 16,
@@ -165,27 +168,21 @@ class _HomeState extends State<Home> {
                     size: 15,
                   ),
                   onPressed: () async {
-                    final controller = TextEditingController(
-                        text: record.label == '' || record.label.isEmpty ? record.id : record.label
-                    );
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      controller.selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: controller.text.length,
-                      );
-                    });
+                    String name = '';
 
                     String? newLabel = await showDialog<String>(
                       context: context,
                       builder: (context) {
                         return AlertDialog(
-                          title: Text("Enter Record Name", textAlign: TextAlign.center),
+                          title: Text(
+                              "Enter Record Name", textAlign: TextAlign.center),
                           content: TextField(
-                            controller: controller,
                             decoration: InputDecoration(hintText: "EnterLabel"),
                             autofocus: true,
                             textAlign: TextAlign.center,
+                            onChanged: (value) {
+                              name = value;
+                            },
                           ),
                           actionsAlignment: MainAxisAlignment.center,
                           actionsPadding: EdgeInsets.only(bottom: 15),
@@ -196,7 +193,7 @@ class _HomeState extends State<Home> {
                             ),
                             SizedBox(width: 50),
                             TextButton(
-                              onPressed: () => Navigator.pop(context, controller.text.trim()),
+                              onPressed: () => Navigator.pop(context, name),
                               child: Text("Enter"),
                             )
                           ],
@@ -204,15 +201,14 @@ class _HomeState extends State<Home> {
                       },
                     );
 
-                    controller.dispose();
-
-                    if(newLabel != null && newLabel.isNotEmpty) {
+                    if (newLabel != null && newLabel.isNotEmpty) {
                       setState(() {
                         record.label = newLabel;
                       });
                     }
 
-                    prefs.setString(record.id, jsonEncode(record.toJson()));
+                    widget.prefs.setString(
+                        record.id, jsonEncode(record.toJson()));
                   },
                 ),
               ],),
@@ -256,8 +252,8 @@ class _HomeState extends State<Home> {
                 ),
               ),
               onPressed: () async {
-                final nameController = TextEditingController();
-                final amountController = TextEditingController();
+                String nameInput = '';
+                String amountInput = '';
 
                 List<String>? result = await showDialog<List<String>>(
                   context: context,
@@ -268,15 +264,20 @@ class _HomeState extends State<Home> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           TextField(
-                            controller: nameController,
-                            decoration: InputDecoration(hintText: "Expense name"),
+                            decoration: InputDecoration(
+                                hintText: "Expense name"),
                             autofocus: true,
+                            onChanged: (value) {
+                              nameInput = value;
+                            }
                           ),
                           SizedBox(height: 10),
                           TextField(
-                            controller: amountController,
                             decoration: InputDecoration(hintText: "Amount"),
                             autofocus: true,
+                            onChanged: (value) {
+                              amountInput = value;
+                            },
                           ),
                           SizedBox(height: 20),
                         ],
@@ -285,15 +286,19 @@ class _HomeState extends State<Home> {
                       actionsPadding: EdgeInsets.only(bottom: 15),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context, null),
+                          onPressed: () {
+                            Navigator.pop(context, null);
+                          },
                           child: Text("Cancel"),
                         ),
                         SizedBox(width: 50),
                         TextButton(
-                          onPressed: () => Navigator.pop(
-                            context,
-                            [nameController.text.trim(), amountController.text.trim()],
-                          ),
+                          onPressed: () {
+                            Navigator.pop(
+                              context,
+                              [nameInput, amountInput],
+                            );
+                          },
                           child: Text("Enter"),
                         )
                       ],
@@ -301,40 +306,36 @@ class _HomeState extends State<Home> {
                   },
                 );
 
-                nameController.dispose();
-                amountController.dispose();
-
-                if(result != null && result.isNotEmpty) {
+                if (result != null && result.isNotEmpty) {
                   setState(() {
                     record.expenses[result[0]] = double.parse(result[1]);
                     record.total += double.parse(result[1]);
                     record.expenses.update(
                         result[0],
-                        (value) => value + double.parse( result[1]),
-                        ifAbsent: () => double.parse( result[1])
+                            (value) => value + double.parse(result[1]),
+                        ifAbsent: () => double.parse(result[1])
                     );
                   });
                 }
 
-                prefs.setString(record.id, jsonEncode(record.toJson()));
+                widget.prefs.setString(record.id, jsonEncode(record.toJson()));
               },
               child: Text("ADD"),
             ),
 
             SizedBox(height: 81),
 
-            expenses == null
-            ? Text("No expenses yet", style: TextStyle(color: Colors.grey))
-            : GridView.builder(
+            expenses == null || expenses!.isEmpty
+                ? Text("No expenses yet", style: TextStyle(color: Colors.grey))
+                : GridView.builder(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(horizontal: 100),
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 150,
+              padding: EdgeInsets.symmetric(horizontal: 40),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
                 mainAxisExtent: 160,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
-                childAspectRatio: 15 / 16,
               ),
               itemCount: expenses!.length,
               itemBuilder: (context, index) {
@@ -343,19 +344,20 @@ class _HomeState extends State<Home> {
                   onUpdate: () {
                     setState(() {
                       record.expenses.update(
-                        expenses![index].name,
-                        (value) => value + expenses![index].amount,
-                        ifAbsent: () => expenses![index].amount
+                          expenses![index].name,
+                              (value) => value + expenses![index].amount,
+                          ifAbsent: () => expenses![index].amount
                       );
                       record.total += expenses![index].amount;
                     });
-                    prefs.setString(record.id, jsonEncode(record.toJson()));
+                    widget.prefs.setString(
+                        record.id, jsonEncode(record.toJson()));
                   },
                 );
               },
             ),
 
-            SizedBox(height: 50),
+            SizedBox(height: 120),
           ],
         ),
       ),
@@ -363,8 +365,8 @@ class _HomeState extends State<Home> {
   }
 
   void _addTemplate() async {
-    final nameController = TextEditingController();
-    final amountController = TextEditingController();
+    String nameInput = '';
+    String amountInput = '';
 
     List<String>? result = await showDialog<List<String>>(
       context: context,
@@ -375,15 +377,19 @@ class _HomeState extends State<Home> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: nameController,
                 decoration: InputDecoration(hintText: "Expense name"),
                 autofocus: true,
+                onChanged: (value) {
+                  nameInput = value;
+                },
               ),
               SizedBox(height: 10),
               TextField(
-                controller: amountController,
                 decoration: InputDecoration(hintText: "Amount"),
                 autofocus: true,
+                onChanged: (value) {
+                  amountInput = value;
+                },
               ),
               SizedBox(height: 20),
             ],
@@ -397,20 +403,13 @@ class _HomeState extends State<Home> {
             ),
             SizedBox(width: 50),
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                    context,
-                    [nameController.text.trim(), amountController.text.trim()],
-                  ),
+              onPressed: () => Navigator.pop(context, [nameInput, amountInput]),
               child: Text("Enter"),
             )
           ],
         );
       },
     );
-
-    nameController.dispose();
-    amountController.dispose();
 
     if (result != null && result.isNotEmpty) {
       String expenseID = "$expenseIDPrefix${uuid.v4()}";
@@ -419,11 +418,8 @@ class _HomeState extends State<Home> {
         amount: double.parse(result[1]),
       );
 
-      prefs.setString(expenseID, jsonEncode(expense.toJson()));
-
-      setState(() {
-        _initExpenses();
-      });
+      widget.prefs.setString(expenseID, jsonEncode(expense.toJson()));
+      _initExpenses();
     }
   }
 }
