@@ -1,7 +1,7 @@
 class Record {
   String id;
   String label;
-  List<String> expenses;
+  Map<String, double> expenses;
   double total;
 
   Record({
@@ -14,14 +14,14 @@ class Record {
   Map<String, dynamic> toJson() => {
     'id': id,
     'label': label,
-    'expenses': expenses,
+    'expenses': expenses.map((key, value) => MapEntry(key, value)),
     'total': total,
   };
 
   factory Record.fromJson(Map<String, dynamic> json) => Record(
     id: json['id'],
     label: json['label'],
-    expenses: List<String>.from(json['expenses']),
+    expenses: Map<String, double>.from(json['expenses']),
     total: json['total'],
   );
 }

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'expense.dart';
+import 'record.dart';
 
 class ExpenseCard extends StatelessWidget {
-  final double amount;
-  final String name;
+  final Expense expense;
+  final VoidCallback onUpdate;
 
   const ExpenseCard({
     super.key,
-    required this.amount,
-    required this.name,
+    required this.expense,
+    required this.onUpdate,
   });
 
   @override
@@ -25,14 +27,12 @@ class ExpenseCard extends StatelessWidget {
           width: 0.8,
         ),
       ),
-      onPressed: () {
-        // TO DO
-      },
+      onPressed: onUpdate,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            "₱$amount",
+            "₱${expense.amount}",
             style: TextStyle(
               color: Colors.black,
               fontSize: 30,
@@ -40,7 +40,7 @@ class ExpenseCard extends StatelessWidget {
             ),
           ),
           Text(
-            name,
+            expense.name,
             style: TextStyle(
               color: Colors.black,
               fontSize: 16,
