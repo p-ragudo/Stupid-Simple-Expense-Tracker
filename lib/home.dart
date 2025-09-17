@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'FloatyButton.dart';
 import 'expense.dart';
 import 'expense_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'history.dart';
 import 'record.dart';
 import 'package:uuid/uuid.dart';
 
@@ -39,7 +41,7 @@ class _HomeState extends State<Home> {
   }
 
   void _initDate() async {
-    final todayId = "$dateIDPrefix${DateFormat("MMM-dd-yyyy").format(
+    final todayId = "$dateIDPrefix${DateFormat("EEE, MMM-dd-yyyy").format(
         DateTime.now())}";
     String? savedDateStateID = widget.prefs.getString('savedDateStateID');
 
@@ -112,7 +114,10 @@ class _HomeState extends State<Home> {
           IconButton(
             icon: Icon(Icons.calendar_month),
             onPressed: () {
-              // TO DO
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => History())
+              );
             },
             color: Colors.white,
           ),
@@ -122,6 +127,7 @@ class _HomeState extends State<Home> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatyButton(
+            heroTag: "redoFab",
               func: () {
                 debugPrint("redo");
               },
@@ -129,6 +135,7 @@ class _HomeState extends State<Home> {
           ),
           SizedBox(width: floatingButtonsSpacing),
           FloatyButton(
+              heroTag: "undoFab",
               func: () {
                 debugPrint("undo");
               },
@@ -136,6 +143,7 @@ class _HomeState extends State<Home> {
           ),
           SizedBox(width: floatingButtonsSpacing),
           FloatyButton(
+              heroTag: "addFab",
               func: _addTemplate,
               icon: Icon(Icons.add)
           ),
@@ -308,13 +316,13 @@ class _HomeState extends State<Home> {
 
                 if (result != null && result.isNotEmpty) {
                   setState(() {
-                    record.expenses[result[0]] = double.parse(result[1]);
-                    record.total += double.parse(result[1]);
+                    final amount = double.parse(result[1]);
                     record.expenses.update(
-                        result[0],
-                            (value) => value + double.parse(result[1]),
-                        ifAbsent: () => double.parse(result[1])
+                      result[0],
+                          (value) => value + amount,
+                      ifAbsent: () => amount,
                     );
+                    record.total += amount;
                   });
                 }
 
@@ -421,30 +429,5 @@ class _HomeState extends State<Home> {
       widget.prefs.setString(expenseID, jsonEncode(expense.toJson()));
       _initExpenses();
     }
-  }
-}
-
-class FloatyButton extends StatelessWidget {
-  final VoidCallback func;
-  final Icon icon;
-
-
-  const FloatyButton({
-    super.key,
-    required this.func,
-    required this.icon
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: func,
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: icon,
-    );
   }
 }
